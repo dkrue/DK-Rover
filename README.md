@@ -1,5 +1,7 @@
 # DK-Rover
 DK-Rover is an [ESP32](https://www.adafruit.com/product/3405) based mobile robot project that responds to commands via wifi. This is an Arduino project I tinker with when I feel like driving it around the yard or upsetting the cat.
+
+![The DK-Rover Robot](/images/DK-Rover_top.jpg)
 ## Features
 ### Dual-mode wifi connection
 Connect your phone to the rover's access point broadcast on its own wifi network, or connect through a local router. Going through a router works great indoors, but offers very limited range outside. It can do both simultaneously. 
