@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width'>	
+    <title>SPIFFS Rover</title>
+    
+    <!--link rel='stylesheet' href='http://kendo.cdn.telerik.com/2019.3.917/styles/kendo.common.min.css'/-->
+    <!--link rel='stylesheet' href='http://kendo.cdn.telerik.com/2019.3.917/styles/kendo.default.min.css'/-->
+    <!--link rel='stylesheet' href='http://kendo.cdn.telerik.com/2019.3.917/styles/kendo.default.mobile.min.css'/-->
+
+    <script src='jquery.min.js'></script>
+    <!--script src='http://kendo.cdn.telerik.com/2019.3.917/js/kendo.ui.core.min.js'></script-->
+
+</head>
+<body>
+<div id='example'>
+    <div class='demo-section k-content'> 
+         <h4>Direction</h4>
+         <input type='range' id='direction' class='dirSlider' value='0' min='-8' max='8' onchange='sendCommand()'/>
+         <p>
+            <button id='backwardButton' onclick='sendCommand(2)'>Backward</button>
+            <button id='forwardButton' onclick='sendCommand(1)'>Forward</button>
+            <button id='stopButton' class='k-primary' onclick='sendCommand(4)'>Stop</button>
+        </p> 
+        <h4>Speed</h4>
+        <input type='range' id='speed' class='speedSlider' value='10' min='8' max='25' onchange='sendCommand()' />
+        <p>
+            <span id='ready'>
+                    <span class='k-icon k-i-arrows-no-change k-icon-32'></span> Ready
+            </span>
+            <span id='sending' class='notification'>
+                <span class='k-icon k-i-gears k-icon-32'></span> Sending...
+            </span>
+            <span id='error' class='notification'>
+                <span class='k-icon k-i-warning k-icon-32'></span> Error:
+                <span id='errormessage'></span> 
+            </span>
+        </p>
+        <hr /> 
+         IR Sensors: <button id='irSensorButton' onclick='irSensorToggle()'>On</button>
+         Tilt Sensor: <button id='tiltSensorButton' onclick='tiltSensorToggle()'>On</button>
+         Ultrasonic Sensor: <button id='ultrasonicSensorButton' onclick='ultrasonicSensorToggle()'>On</button>
+         Headlights: <button id='headlightsButton' onclick='headlightsToggle()'>On</button>
+         <p><button onclick='powerAdjToggle()'>Advanced Adjustment</button></p>
+         <div id='power' style='display:none'>
+             <strong title='Front Right'>M1 <span class='k-icon k-i-arrow-45-up-right'></span></strong>             
+             <input type='range' class='pwrSlider' value='0' min='-5' max='0' title='pwrSlider1' />
+             <strong title='Front Left'>M2 <span class='k-icon k-i-arrow-45-up-left'></span></strong>
+             <input type='range' class='pwrSlider' value='0' min='-5' max='0' title='pwrSlider2' />
+             <strong title='Back Left'>M3 <span class='k-icon k-i-arrow-45-down-left'></span></strong>
+             <input type='range' class='pwrSlider' value='0' min='-5' max='0' title='pwrSlider3' />
+             <strong title='Back Right'>M4 <span class='k-icon k-i-arrow-45-down-right'></span></strong>
+             <input type='range' class='pwrSlider' value='0' min='-5' max='0' title='pwrSlider4' />
+             <h4 style='padding-top: 2em;'>IP</h4>
+             <input id='ipaddress' type='text' value='%AP_IP_ADDRESS%'>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            var direction = $('#direction').kendoSlider({
+                increaseButtonTitle: 'Right',
+                decreaseButtonTitle: 'Left',
+                min: -8,
+                max: 8,
+                smallStep: 1,
+                largeStep: 2,
+                change: sliderChange
+            }).data('kendoSlider');
+
+            var slider = $('#speed').kendoSlider({
+                increaseButtonTitle: 'Faster',
+                decreaseButtonTitle: 'Slower',
+                min: 8,
+                max: 25,
+                smallStep: 1,
+                largeStep: 2,
+                change: sliderChange
+            }).data('kendoSlider');
+
+            $('#backwardButton').kendoButton({
+                icon: 'arrow-seek-down',
+            });
+            $('#stopButton').kendoButton({
+                icon: 'stop'
+            });
+            $('#forwardButton').kendoButton({
+                icon: 'arrow-seek-up',
+            });
+
+            $('.pwrSlider').kendoSlider({
+                orientation: 'vertical',
+                min:-5,
+                max: 0,
+                smallStep: 1,
+                largeStep: 2,
+                showButtons: true
+            });
+        });
+
+        function sliderChange(e) {
+            sendCommand();
+        }
+
+        function irSensorToggle() {
+            if($('#irSensorButton').text() == 'Off') {
+                $('#irSensorButton').text('On');
+            } else {
+                $('#irSensorButton').text('Off');
+            }
+            sendCommand();
+        }
+
+        function tiltSensorToggle() {
+            if($('#tiltSensorButton').text() == 'Off') {
+                $('#tiltSensorButton').text('On');
+            } else {
+                $('#tiltSensorButton').text('Off');
+            }
+            sendCommand(); 
+        }
+
+        function ultrasonicSensorToggle() {
+            if($('#ultrasonicSensorButton').text() == 'Off') {
+                $('#ultrasonicSensorButton').text('On');
+            } else {
+                $('#ultrasonicSensorButton').text('Off');
+            }
+            sendCommand(); 
+        }
+
+        function headlightsToggle() {
+            if($('#headlightsButton').text() == 'Off') {
+                $('#headlightsButton').text('On');
+            } else {
+                $('#headlightsButton').text('Off');
+            }
+            sendCommand(); 
+        }
+
+        function powerAdjToggle() {
+            $('#power').toggle();
+        }
+
+        function sendCommand(motorState) {
+            $('#error,#ready').hide();
+            $('#sending').show();
+
+            var data = {
+                    direction: $('#direction').val(),
+                    speed: $('#speed').val(),
+                    m1: $('input.pwrSlider:eq(0)').val(),
+                    m2: $('input.pwrSlider:eq(1)').val(),
+                    m3: $('input.pwrSlider:eq(2)').val(),
+                    m4: $('input.pwrSlider:eq(3)').val(),
+                    ir: $('#irSensorButton').text() == 'On',
+                    tilt: $('#tiltSensorButton').text() == 'On',
+                    ultrasonic: $('#ultrasonicSensorButton').text() == 'On',
+                    headlights: $('#headlightsButton').text() == 'On'
+                };
+
+            if(!isNaN(motorState)) {
+                data.motorState = motorState;
+            }
+
+            $.ajax({url: 'http://' + $('#ipaddress').val() + "/drive",
+                data: data, 
+                timeout: 3000,
+                success: function () { 
+                    $('#sending').hide();
+                    $('#ready').show();
+                },
+                error: function (data) {
+                    console.log(data);
+                    $('#errormessage').text(data.statusText);
+                    $('#sending').hide();
+                    $('#error').show();
+                }        
+            });
+        }
+    </script>
+
+    <style>
+        .demo-section {
+            text-align: center;
+        }
+
+        #power {
+            padding-right: 15px;
+        }
+
+        .dirSlider {
+            width: 100vw;
+            margin-bottom: 30px;
+        }
+
+
+        .speedSlider {
+            width: 80vw;
+            margin-bottom: 30px;
+        }
+
+        div.dirSlider .k-slider-selection {
+            display: none;
+        }
+
+        button {
+            min-width: 120px;
+            margin:10px;
+        }
+
+        div.pwrSlider {
+            display: inline-block;
+            margin: 2em;
+            height: 200px;
+            vertical-align: top;
+        }
+
+        p .notification {
+            display: none;
+        }
+
+        .k-icon-32 {
+            font-size: 32px;
+        }
+    </style>
+</div>
+
+
+</body>
+</html>
